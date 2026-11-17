@@ -16,12 +16,11 @@
             <td width="55%"><font size="4"><b>QuikChat v2.1</b></font> <small><i>(Multi-User Group Chat Applet)</i></small></td>
             <td width="45%" align="right">
                 <div id="auth-logged-out">
-                    User: <input type="text" id="login-user" size="10">
-                    Pass: <input type="password" id="login-pass" size="10">
-                    <button type="button" onclick="handleLogin()">Log In</button>
+                    <a href="account.html" id="top-account-link" class="header-link"><b>[ Log In / Register ]</b></a>
                 </div>
                 <div id="auth-logged-in" class="hidden">
                     Operator: <b><span id="display-username"></span></b> 
+                    <button type="button" onclick="openAccountPage()">Account</button>
                     <button type="button" onclick="handleLogout()">Log Out</button>
                 </div>
             </td>
@@ -50,15 +49,11 @@
                     <button type="button" onclick="createNewRoom()">+ Create Chat Room</button>
                 </div>
 
-                <!-- Registration Box (Logged Out) -->
+                <!-- Account Link Box (Logged Out) -->
                 <div id="register-box">
-                    <h4><u>New Operator</u></h4>
-                    <p><small>Create an account to make chats and invite friends:</small></p>
-                    Username:<br>
-                    <input type="text" id="reg-user" size="16"><br><br>
-                    Password:<br>
-                    <input type="password" id="reg-pass" size="16"><br><br>
-                    <button type="button" onclick="handleRegister()">Register Account</button>
+                    <h4><u>Operator Access</u></h4>
+                    <p><small>Sign in or create an account to chat, make rooms, and invite friends.</small></p>
+                    <button type="button" onclick="openAccountPage()">Log In or Register &raquo;</button>
                 </div>
             </td>
 
@@ -105,7 +100,7 @@
                 <!-- Blocked Notice (Logged Out) -->
                 <div id="chat-blocked-area">
                     <table width="100%" border="1" cellpadding="6" cellspacing="0" class="notice-table">
-                        <tr><td><b>NOTICE:</b> Log in at the top right or register on the left to join this chat, create rooms, and invite people.</td></tr>
+                        <tr><td><b>NOTICE:</b> Please <a href="account.html" id="notice-account-link">log in or register an account</a> to join this chat, create rooms, and invite people.</td></tr>
                     </table>
                 </div>
 
@@ -162,6 +157,14 @@
         } catch (e) {}
     }
 
+    function getAccountUrl() {
+        return (currentRoomId !== "general") ? ("account.html#join=" + encodeURIComponent(currentRoomId)) : "account.html";
+    }
+
+    function openAccountPage() {
+        window.location.href = getAccountUrl();
+    }
+
     function checkInviteLink() {
         var hash = window.location.hash;
         if (hash && hash.indexOf("#join=") === 0) {
@@ -213,66 +216,28 @@
         setDisplay("chat-input-area", loggedIn ? "block" : "none");
         setDisplay("chat-blocked-area", loggedIn ? "none" : "block");
         setDisplay("invite-panel", loggedIn ? "block" : "none");
+
+        var acctUrl = getAccountUrl();
+        var topLink = document.getElementById("top-account-link");
+        var noticeLink = document.getElementById("notice-account-link");
+        if (topLink) topLink.href = acctUrl;
+        if (noticeLink) noticeLink.href = acctUrl;
     }
 
-    function handleRegister() {
-        var regUserEl = document.getElementById("reg-user");
-        var regPassEl = document.getElementById("reg-pass");
-        var u = regUserEl.value.trim();
-        var p = regPassEl.value;
-
-        if (u === "" || p === "") {
-            alert("Please enter both a username and password.");
-            return;
-        }
-        if (userDatabase[u]) {
-            alert("Error: That operator name is already taken.");
-            return;
-        }
-
-        userDatabase[u] = p;
-        activeUser = u;
-        addMemberToRoom(currentRoomId, activeUser);
+    function handleLogout() {
+        activeUser = "";
         saveData();
-
-        regUserEl.value = "";
-        regPassEl.value = "";
         updateAuthUI();
-        renderRoomList();
-        switchRoom(currentRoomId);
-alert("Account created! Welcome to QuikChat, " + u + ".");
-}
-function handleLogin() {
-var loginUserEl = document.getElementById("login-user");
-var loginPassEl = document.getElementById("login-pass");
-var u = loginUserEl.value.trim();
-var p = loginPassEl.value;
-if (userDatabase[u] && userDatabase[u] === p) {
-activeUser = u;
-addMemberToRoom(currentRoomId, activeUser);
-saveData();
-loginUserEl.value = "";
-loginPassEl.value = "";
-updateAuthUI();
-renderRoomList();
-switchRoom(currentRoomId);
-} else {
-alert("Access Denied: Invalid username or password.");
-}
-}
-function handleLogout() {
-activeUser = "";
-saveData();
-updateAuthUI();
-}
-function createNewRoom() {
-if (activeUser === "") return;
-var nameInput = document.getElementById("new-room-name");
-var rawName = nameInput.value.trim();
-if (rawName === "") {
-alert("Please enter a name for your new chat.");
-return;
-}
+    }
+
+    function createNewRoom() {
+        if (activeUser === "") return;
+        var nameInput = document.getElementById("new-room-name");
+        var rawName = nameInput.value.trim();
+        if (rawName === "") {
+            alert("Please enter a name for your new chat.");
+            return;
+        }
 var slug = rawName.replace(/[^a-zA-Z0-9]/g, "-");
 var randomCode = Math.floor(1000 + Math.random() * 9000);
 var roomId = slug + "_" + randomCode;
@@ -327,6 +292,11 @@ var hashPos = fullHref.indexOf("#");
 var cleanUrl = (hashPos > -1) ? fullHref.substring(0, hashPos) : fullHref;
 var inviteInput = document.getElementById("invite-link-input");
 if (inviteInput) inviteInput.value = cleanUrl + "#join=" + encodeURIComponent(currentRoomId);
+var acctUrl = getAccountUrl();
+var topLink = document.getElementById("top-account-link");
+var noticeLink = document.getElementById("notice-account-link");
+if (topLink) topLink.href = acctUrl;
+if (noticeLink) noticeLink.href = acctUrl;
 renderRoomList();
 renderMessages();
 }
