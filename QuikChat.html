@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>QuikChat v2.1 - Multi-User Chat Applet</title>
+<style type="text/css">
+    body { background-color: #C0C0C0; color: #000000; font-family: "Times New Roman", Times, serif; margin: 12px; }
+    table { background-color: #FFFFFF; }
+    .header-bar { background-color: #000080; color: #FFFFFF; }
+    .nav-cell { background-color: #E0E0E0; }
+    .chat-log { font-family: "Courier New", Courier, monospace; font-size: 13px; height: 280px; overflow-y: scroll; background-color: #FFFFFF; padding: 8px; border: 2px inset #808080; }
+    input, button { font-family: "MS Sans Serif", Arial, sans-serif; font-size: 12px; }
+    .invite-box { background-color: #F0F8FF; border: 1px dashed #000080; padding: 6px; margin-bottom: 8px; }
+</style>
+</head>
+<body onload="initQuikChat()">
+
+<table width="820" align="center" border="0" cellpadding="0" cellspacing="0" style="background-color: transparent;">
+<tr><td>
+
+    <!-- Top Application Title Bar -->
+    <table width="100%" border="1" cellpadding="6" cellspacing="0" class="header-bar">
+        <tr>
+            <td width="55%"><font size="4"><b>QuikChat v2.1</b></font> <small><i>(Multi-User Group Chat Applet)</i></small></td>
+            <td width="45%" align="right">
+                <div id="auth-logged-out">
+                    User: <input type="text" id="login-user" size="10">
+                    Pass: <input type="password" id="login-pass" size="10">
+                    <button type="button" onclick="handleLogin()">Log In</button>
+                </div>
+                <div id="auth-logged-in" style="display:none;">
+                    Operator: <b><span id="display-username"></span></b> 
+                    <button type="button" onclick="handleLogout()">Log Out</button>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <!-- Main 2-Column Web 1.0 Grid -->
+    <table width="100%" border="1" cellpadding="6" cellspacing="0">
+        <tr valign="top">
+            
+            <!-- Left Sidebar: Your Chats & Create Room -->
+            <td width="30%" class="nav-cell">
+                <h3><u>Your Chats</u></h3>
+                <ul id="room-list"><li><b>&gt; General Lobby</b></li></ul>
+
+                <hr size="1">
+
+                <!-- Create New Multi-Person Chat (Logged In) -->
+                <div id="create-room-box" style="display:none;">
+                    <h4><u>Create a Chat</u></h4>
+                    <p><small>Start a new group room and get an invite link:</small></p>
+                    Chat Name:<br>
+                    <input type="text" id="new-room-name" size="18" placeholder="e.g. Squad Chat"><br><br>
+                    <button type="button" onclick="createNewRoom()">+ Create Chat Room</button>
+                </div>
+
+                <!-- Registration Box (Logged Out) -->
+                <div id="register-box">
+                    <h4><u>New Operator</u></h4>
+                    <p><small>Create an account to make chats and invite friends:</small></p>
+                    Username:<br>
+                    <input type="text" id="reg-user" size="16"><br><br>
+                    Password:<br>
+                    <input type="password" id="reg-pass" size="16"><br><br>
+                    <button type="button" onclick="handleRegister()">Register Account</button>
+                </div>
+            </td>
+
+            <!-- Right Main Area: Chat Feed, Invite Link & Input -->
+            <td width="70%">
+                <table width="100%" border="0" cellpadding="2" cellspacing="0">
+                    <tr>
+                        <td>
+                            <b>Room: <span id="header-room-name">General Lobby</span></b><br>
+                            <small>Members: <span id="header-room-members">SYSTEM</span></small>
+                        </td>
+                        <td align="right" valign="top">
+                            <button type="button" onclick="clearChannelHistory()">Clear Log</button>
+                        </td>
+                    </tr>
+                </table>
+
+                <!-- Shareable Invite Link Bar -->
+                <div id="invite-panel" class="invite-box" style="display:none;">
+                    <table width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color: transparent;">
+                        <tr>
+                            <td width="22%"><small><b>Invite Link:</b></small></td>
+                            <td width="58%"><input type="text" id="invite-link-input" style="width: 96%;" readonly></td>
+                            <td width="20%" align="right"><button type="button" onclick="copyInviteLink()">Copy Link</button></td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <!-- Chat Output Window -->
+                <div id="chat-window" class="chat-log"><i>Loading QuikChat message buffers...</i></div>
+
+                <br>
+
+                <!-- Chat Input Controls (Authenticated) -->
+                <div id="chat-input-area" style="display:none;">
+                    <table width="100%" border="0" cellpadding="2" cellspacing="0">
+                        <tr>
+                            <td width="82%"><input type="text" id="msg-box" style="width: 98%;" placeholder="Type message and press Enter..." onkeydown="checkEnter(event)"></td>
+                            <td width="18%" align="right"><button type="button" onclick="sendMessage()" style="width: 100%;">Send</button></td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Blocked Notice (Logged Out) -->
+                <div id="chat-blocked-area">
+                    <table width="100%" border="1" cellpadding="6" cellspacing="0" bgcolor="#FFFFE0">
+                        <tr><td><b>NOTICE:</b> Log in at the top right or register on the left to join this chat, create rooms, and invite people.</td></tr>
+                    </table>
+                </div>
+
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <table width="100%" border="1" cellpadding="4" cellspacing="0" class="nav-cell">
+        <tr>
+            <td><small>QuikChat Web Applet v2.1 &copy; 2026</small></td>
+            <td align="right"><small>Best viewed at 800x600 or higher</small></td>
+        </tr>
+    </table>
+
+</td></tr>
+</table>
+
+<script type="text/javascript">
+    var currentRoomId = "general";
+    var activeUser = "";
+    var userDatabase = {};
+    var roomsDatabase = {
+        "general": { name: "General Lobby", creator: "SYSTEM", members: ["SYSTEM"], messages: [] }
+    };
+
+    function setDisplay(id, val) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = val;
+    }
+
+    function setText(id, val) {
+        var el = document.getElementById(id);
+        if (el) el.innerText = val;
+    }
+
+    function saveData() {
+        try {
+            window.localStorage.setItem("qc2_active_user", activeUser);
+            window.localStorage.setItem("qc2_users", JSON.stringify(userDatabase));
+            window.localStorage.setItem("qc2_rooms", JSON.stringify(roomsDatabase));
+        } catch (e) {}
+    }
+
+    function loadData() {
+        try {
+            var u = window.localStorage.getItem("qc2_active_user");
+            if (u) activeUser = u;
+            var db = window.localStorage.getItem("qc2_users");
+            if (db) userDatabase = JSON.parse(db);
+            var rooms = window.localStorage.getItem("qc2_rooms");
+            if (rooms) roomsDatabase = JSON.parse(rooms);
+        } catch (e) {}
+    }
+
+    function checkInviteLink() {
+        var hash = window.location.hash;
+        if (hash && hash.indexOf("#join=") === 0) {
+            var inviteCode = decodeURIComponent(hash.substring(6));
+            if (inviteCode !== "") {
+                if (!roomsDatabase[inviteCode]) {
+                    var underscorePos = inviteCode.indexOf("_");
+                    var rawTitle = (underscorePos > 0) ? inviteCode.substring(0, underscorePos) : inviteCode;
+                    var readableName = rawTitle.replace(/-/g, " ");
+                    roomsDatabase[inviteCode] = {
+                        name: readableName,
+                        creator: "Host",
+                        members: [],
+                        messages: [{ time: new Date().toLocaleTimeString(), sender: "SYSTEM", text: "Joined room via invite link (" + inviteCode + ")." }]
+                    };
+                    saveData();
+                }
+                currentRoomId = inviteCode;
+            }
+        }
+    }
+
+    function initQuikChat() {
+        loadData();
+        checkInviteLink();
+        if (activeUser !== "") addMemberToRoom(currentRoomId, activeUser);
+        updateAuthUI();
+        renderRoomList();
+        switchRoom(currentRoomId);
+    }
+
+    function addMemberToRoom(roomId, username) {
+        var room = roomsDatabase[roomId];
+        if (!room) return;
+        if (room.members.indexOf(username) === -1) {
+            room.members.push(username);
+            room.messages.push({ time: new Date().toLocaleTimeString(), sender: "SYSTEM", text: username + " joined the chat." });
+            saveData();
+        }
+    }
+
+    function updateAuthUI() {
+        var loggedIn = (activeUser !== "");
+        setDisplay("auth-logged-out", loggedIn ? "none" : "block");
+        setDisplay("auth-logged-in", loggedIn ? "block" : "none");
+        if (loggedIn) setText("display-username", activeUser);
+        setDisplay("register-box", loggedIn ? "none" : "block");
+        setDisplay("create-room-box", loggedIn ? "block" : "none");
+        setDisplay("chat-input-area", loggedIn ? "block" : "none");
+        setDisplay("chat-blocked-area", loggedIn ? "none" : "block");
+        setDisplay("invite-panel", loggedIn ? "block" : "none");
+    }
+
+    function handleRegister() {
+        var regUserEl = document.getElementById("reg-user");
+var regPassEl = document.getElementById("reg-pass");
+var u = regUserEl.value.trim();
+var p = regPassEl.value;
+if (u === "" || p === "") {
+alert("Please enter both a username and password.");
+return;
+}
+if (userDatabase[u]) {
+alert("Error: That operator name is already taken.");
+return;
+}
+userDatabase[u] = p;
+activeUser = u;
+addMemberToRoom(currentRoomId, activeUser);
+saveData();
+regUserEl.value = "";
+regPassEl.value = "";
+updateAuthUI();
+renderRoomList();
+switchRoom(currentRoomId);
+alert("Account created! Welcome to QuikChat, " + u + ".");
+}
+function handleLogin() {
+var loginUserEl = document.getElementById("login-user");
+var loginPassEl = document.getElementById("login-pass");
+var u = loginUserEl.value.trim();
+var p = loginPassEl.value;
+if (userDatabase[u] && userDatabase[u] === p) {
+activeUser = u;
+addMemberToRoom(currentRoomId, activeUser);
+saveData();
+loginUserEl.value = "";
+loginPassEl.value = "";
+updateAuthUI();
+renderRoomList();
+switchRoom(currentRoomId);
+} else {
+alert("Access Denied: Invalid username or password.");
+}
+}
+function handleLogout() {
+activeUser = "";
+saveData();
+updateAuthUI();
+}
+function createNewRoom() {
+if (activeUser === "") return;
+var nameInput = document.getElementById("new-room-name");
+var rawName = nameInput.value.trim();
+if (rawName === "") {
+alert("Please enter a name for your new chat.");
+return;
+}
+var slug = rawName.replace(/[^a-zA-Z0-9]/g, "-");
+var randomCode = Math.floor(1000 + Math.random() * 9000);
+var roomId = slug + "_" + randomCode;
+roomsDatabase[roomId] = {
+name: rawName,
+creator: activeUser,
+members: [activeUser],
+messages: [{ time: new Date().toLocaleTimeString(), sender: "SYSTEM", text: "Chat '" + rawName + "' created by " + activeUser + "." }]
+};
+saveData();
+nameInput.value = "";
+renderRoomList();
+switchRoom(roomId);
+}
+function renderRoomList() {
+var listEl = document.getElementById("room-list");
+if (!listEl) return;
+listEl.innerHTML = "";
+for (var id in roomsDatabase) {
+if (roomsDatabase.hasOwnProperty(id)) {
+var room = roomsDatabase[id];
+var li = document.createElement("li");
+if (id === currentRoomId) {
+var b = document.createElement("b");
+b.innerText = "> " + room.name;
+li.appendChild(b);
+} else {
+var a = document.createElement("a");
+a.href = "#";
+a.innerText = "# " + room.name;
+a.onclick = (function(targetId) {
+return function() {
+switchRoom(targetId);
+return false;
+};
+})(id);
+li.appendChild(a);
+}
+listEl.appendChild(li);
+}
+}
+}
+function switchRoom(roomId) {
+if (!roomsDatabase[roomId]) roomId = "general";
+currentRoomId = roomId;
+if (activeUser !== "") addMemberToRoom(currentRoomId, activeUser);
+var room = roomsDatabase[currentRoomId];
+setText("header-room-name", room.name);
+setText("header-room-members", room.members.join(", "));
+var fullHref = window.location.href;
+var hashPos = fullHref.indexOf("#");
+var cleanUrl = (hashPos > -1) ? fullHref.substring(0, hashPos) : fullHref;
+var inviteInput = document.getElementById("invite-link-input");
+if (inviteInput) inviteInput.value = cleanUrl + "#join=" + encodeURIComponent(currentRoomId);
+renderRoomList();
+renderMessages();
+}
+function copyInviteLink() {
+var inviteInput = document.getElementById("invite-link-input");
+if (!inviteInput) return;
+inviteInput.select();
+try {
+document.execCommand("copy");
+alert("Invite link copied to clipboard!\n\n" + inviteInput.value);
+} catch (e) {
+alert("Select and copy this invite link:\n\n" + inviteInput.value);
+}
+}
+function checkEnter(e) {
+if ((e.keyCode || e.which) === 13) sendMessage();
+}
+function sendMessage() {
+if (activeUser === "") return;
+var input = document.getElementById("msg-box");
+var rawText = input.value;
+if (rawText.trim() === "") return;
+roomsDatabase[currentRoomId].messages.push({ time: new Date().toLocaleTimeString(), sender: activeUser, text: rawText });
+saveData();
+input.value = "";
+renderMessages();
+}
+function renderMessages() {
+var win = document.getElementById("chat-window");
+if (!win) return;
+win.innerHTML = "";
+var room = roomsDatabase[currentRoomId];
+var messages = room ? room.messages : [];
+if (!messages || messages.length === 0) {
+var emptyNote = document.createElement("i");
+emptyNote.innerText = "*** Welcome to " + room.name + ". No messages yet. ***";
+win.appendChild(emptyNote);
+return;
+}
+for (var i = 0; i < messages.length; i++) {
+var line = document.createElement("div");
+if (messages[i].sender === "SYSTEM") {
+line.style.color = "#008000";
+line.style.fontStyle = "italic";
+line.innerText = "[" + messages[i].time + "] * " + messages[i].text;
+} else {
+var prefix = document.createTextNode("[" + messages[i].time + "] ");
+var boldUser = document.createElement("b");
+boldUser.innerText = "<" + messages[i].sender + "> ";
+var msgText = document.createTextNode(messages[i].text);
+line.appendChild(prefix);
+line.appendChild(boldUser);
+line.appendChild(msgText);
+}
+win.appendChild(line);
+}
+win.scrollTop = win.scrollHeight;
+}
+function clearChannelHistory() {
+var room = roomsDatabase[currentRoomId];
+if (confirm("Delete all saved messages in '" + room.name + "'?")) {
+room.messages = [];
+saveData();
+renderMessages();
+}
+}
+
+
+
+</script>
+</body>
+</html>
+
+
