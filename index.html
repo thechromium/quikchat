@@ -13,16 +13,17 @@
     <!-- Top Application Title Bar -->
     <table width="100%" border="1" cellpadding="6" cellspacing="0" class="header-bar">
         <tr>
-            <td width="55%"><font size="4"><b>QuikChat v2.1</b></font> <small><i>(Multi-User Group Chat Applet)</i></small></td>
-            <td width="45%" align="right">
-                <div id="auth-logged-out">
+            <td width="50%"><font size="4"><b>QuikChat v2.1</b></font> <small><i>(Multi-User Group Chat Applet)</i></small></td>
+            <td width="50%" align="right">
+                <a href="message.html" class="header-link"><b>[ Message Logs ]</b></a>&nbsp;
+                <span id="auth-logged-out">
                     <a href="account.html" id="top-account-link" class="header-link"><b>[ Log In / Register ]</b></a>
-                </div>
-                <div id="auth-logged-in" class="hidden">
+                </span>
+                <span id="auth-logged-in" class="hidden">
                     Operator: <b><span id="display-username"></span></b> 
                     <button type="button" onclick="openAccountPage()">Account</button>
                     <button type="button" onclick="handleLogout()">Log Out</button>
-                </div>
+                </span>
             </td>
         </tr>
     </table>
@@ -66,6 +67,7 @@
                             <small>Members: <span id="header-room-members">SYSTEM</span></small>
                         </td>
                         <td align="right" valign="top">
+                            <button type="button" onclick="openMessageLogs()">Open message.html</button>
                             <button type="button" onclick="clearChannelHistory()">Clear Log</button>
                         </td>
                     </tr>
@@ -149,7 +151,7 @@
     function loadData() {
         try {
             var u = window.localStorage.getItem("qc2_active_user");
-            if (u) activeUser = u;
+            activeUser = u ? u : "";
             var db = window.localStorage.getItem("qc2_users");
             if (db) userDatabase = JSON.parse(db);
             var rooms = window.localStorage.getItem("qc2_rooms");
@@ -163,6 +165,10 @@
 
     function openAccountPage() {
         window.location.href = getAccountUrl();
+    }
+
+    function openMessageLogs() {
+        window.location.href = "message.html";
     }
 
     function checkInviteLink() {
@@ -208,8 +214,8 @@
 
     function updateAuthUI() {
         var loggedIn = (activeUser !== "");
-        setDisplay("auth-logged-out", loggedIn ? "none" : "block");
-        setDisplay("auth-logged-in", loggedIn ? "block" : "none");
+        setDisplay("auth-logged-out", loggedIn ? "none" : "inline");
+        setDisplay("auth-logged-in", loggedIn ? "inline" : "none");
         if (loggedIn) setText("display-username", activeUser);
         setDisplay("register-box", loggedIn ? "none" : "block");
         setDisplay("create-room-box", loggedIn ? "block" : "none");
@@ -221,23 +227,21 @@
         var topLink = document.getElementById("top-account-link");
         var noticeLink = document.getElementById("notice-account-link");
         if (topLink) topLink.href = acctUrl;
-        if (noticeLink) noticeLink.href = acctUrl;
-    }
-
-    function handleLogout() {
-        activeUser = "";
-        saveData();
-        updateAuthUI();
-    }
-
-    function createNewRoom() {
-        if (activeUser === "") return;
-        var nameInput = document.getElementById("new-room-name");
-        var rawName = nameInput.value.trim();
-        if (rawName === "") {
-            alert("Please enter a name for your new chat.");
-            return;
-        }
+if (noticeLink) noticeLink.href = acctUrl;
+}
+function handleLogout() {
+activeUser = "";
+saveData();
+updateAuthUI();
+}
+function createNewRoom() {
+if (activeUser === "") return;
+var nameInput = document.getElementById("new-room-name");
+var rawName = nameInput.value.trim();
+if (rawName === "") {
+alert("Please enter a name for your new chat.");
+return;
+}
 var slug = rawName.replace(/[^a-zA-Z0-9]/g, "-");
 var randomCode = Math.floor(1000 + Math.random() * 9000);
 var roomId = slug + "_" + randomCode;
@@ -363,6 +367,14 @@ saveData();
 renderMessages();
 }
 }
+window.addEventListener("storage", function(e) {
+if (e.key === "qc2_rooms" || e.key === "qc2_active_user") {
+loadData();
+updateAuthUI();
+renderRoomList();
+renderMessages();
+}
+});
 
 
 
