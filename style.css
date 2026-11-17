@@ -1,8 +1,23 @@
+/* QuikChat v2.1 - Classic Web 1.0 & Windows 9x Stylesheet */
+
 body {
     background-color: #C0C0C0;
     color: #000000;
     font-family: "Times New Roman", Times, serif;
-    margin: 12px;
+    font-size: 14px;
+    margin: 16px;
+}
+
+a {
+    color: #0000EE;
+}
+
+a:visited {
+    color: #551A8B;
+}
+
+a:hover {
+    color: #FF0000;
 }
 
 table {
@@ -13,34 +28,122 @@ table {
     background-color: transparent;
 }
 
+/* Top Navy Application Header */
 .header-bar {
     background-color: #000080;
     color: #FFFFFF;
+    border-top: 2px solid #FFFFFF;
+    border-left: 2px solid #FFFFFF;
+    border-right: 2px solid #404040;
+    border-bottom: 2px solid #404040;
 }
 
-.nav-cell {
-    background-color: #E0E0E0;
-}
-
-.chat-log {
-    font-family: "Courier New", Courier, monospace;
-    font-size: 13px;
-    height: 280px;
-    overflow-y: scroll;
-    background-color: #FFFFFF;
-    padding: 8px;
-    border: 2px inset #808080;
-}
-
-input, button {
+.header-link,
+.header-link:visited {
+    color: #FFFFFF;
+    text-decoration: underline;
     font-family: "MS Sans Serif", Arial, sans-serif;
     font-size: 12px;
 }
 
+.header-link:hover {
+    color: #FFFF00;
+}
+
+/* Sidebar & Footer Cells */
+.nav-cell {
+    background-color: #E0E0E0;
+}
+
+.nav-cell h3,
+.nav-cell h4 {
+    margin-top: 2px;
+    margin-bottom: 8px;
+}
+
+/* Room List Styling */
+#room-list {
+    list-style-type: none;
+    padding-left: 4px;
+    margin-top: 6px;
+    margin-bottom: 10px;
+}
+
+#room-list li {
+    padding: 3px 4px;
+    font-family: "MS Sans Serif", Arial, sans-serif;
+    font-size: 12px;
+}
+
+#room-list li a {
+    text-decoration: none;
+}
+
+#room-list li a:hover {
+    text-decoration: underline;
+}
+
+/* Classic 3D Beveled Buttons & Inputs */
+input[type="text"],
+input[type="password"] {
+    font-family: "MS Sans Serif", Arial, sans-serif;
+    font-size: 12px;
+    background-color: #FFFFFF;
+    color: #000000;
+    padding: 3px 4px;
+    border-top: 2px solid #808080;
+    border-left: 2px solid #808080;
+    border-right: 2px solid #DFDFDF;
+    border-bottom: 2px solid #DFDFDF;
+}
+
+button {
+    font-family: "MS Sans Serif", Arial, sans-serif;
+    font-size: 12px;
+    background-color: #D4D0C8;
+    color: #000000;
+    padding: 3px 10px;
+    cursor: pointer;
+    border-top: 2px solid #FFFFFF;
+    border-left: 2px solid #FFFFFF;
+    border-right: 2px solid #404040;
+    border-bottom: 2px solid #404040;
+}
+
+button:active {
+    border-top: 2px solid #404040;
+    border-left: 2px solid #404040;
+    border-right: 2px solid #FFFFFF;
+    border-bottom: 2px solid #FFFFFF;
+    padding: 4px 9px 2px 11px;
+}
+
+/* Chat Feed Window */
+.chat-log {
+    font-family: "Courier New", Courier, monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    height: 280px;
+    overflow-y: scroll;
+    background-color: #FFFFFF;
+    padding: 8px;
+    border-top: 2px solid #808080;
+    border-left: 2px solid #808080;
+    border-right: 2px solid #DFDFDF;
+    border-bottom: 2px solid #DFDFDF;
+}
+
+.chat-log div {
+    margin-bottom: 3px;
+    word-wrap: break-word;
+}
+
+/* Invite Link Box */
 .invite-box {
     background-color: #F0F8FF;
     border: 1px dashed #000080;
     padding: 6px;
+    margin-top: 6px;
     margin-bottom: 8px;
 }
 
@@ -50,20 +153,26 @@ input, button {
 
 .invite-input {
     width: 96%;
+    background-color: #FFFFF8;
 }
 
+/* Message Input Row */
 .msg-input {
     width: 98%;
 }
 
 .send-btn {
     width: 100%;
+    font-weight: bold;
 }
 
+/* Logged-Out & Active Session Notice Banner */
 .notice-table {
     background-color: #FFFFE0;
+    border: 1px solid #808000;
 }
 
 .hidden {
     display: none;
 }
+
