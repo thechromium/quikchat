@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>QuikChat v2.1 - Operator Accounts</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body onload="initAccountPage()">
+
+<table width="640" align="center" border="0" cellpadding="0" cellspacing="0" class="layout-wrapper">
+<tr><td>
+
+    <!-- Top Application Title Bar -->
+    <table width="100%" border="1" cellpadding="6" cellspacing="0" class="header-bar">
+        <tr>
+            <td width="65%"><font size="4"><b>QuikChat v2.1</b></font> <small><i>(Operator Account Center)</i></small></td>
+            <td width="35%" align="right">
+                <a href="index.html" id="back-to-chat-link" class="header-link"><b>&laquo; Back to Chat</b></a>
+            </td>
+        </tr>
+    </table>
+
+    <br>
+
+    <!-- Active Session Box (Shown if Already Logged In) -->
+    <div id="already-logged-in" class="hidden">
+        <table width="100%" border="1" cellpadding="8" cellspacing="0" class="notice-table">
+            <tr>
+                <td>
+                    <b>Active Session:</b> You are currently logged in as <b><span id="current-operator"></span></b>.<br><br>
+                    <button type="button" onclick="returnToChat()">Enter QuikChat Rooms</button>
+                    <button type="button" onclick="handleLogout()">Log Out</button>
+                </td>
+            </tr>
+        </table>
+        <br>
+    </div>
+
+    <!-- 2-Column Login & Register Grid -->
+    <table width="100%" border="1" cellpadding="8" cellspacing="0">
+        <tr valign="top">
+
+            <!-- Left Column: Log In -->
+            <td width="50%" class="nav-cell">
+                <h3><u>Operator Log In</u></h3>
+                <p><small>Already have a QuikChat account? Sign in below:</small></p>
+                Username:<br>
+                <input type="text" id="login-user" size="22"><br><br>
+                Password:<br>
+                <input type="password" id="login-pass" size="22" onkeydown="checkLoginEnter(event)"><br><br>
+                <button type="button" onclick="handleLogin()">Log In</button>
+            </td>
+
+            <!-- Right Column: Register New Account -->
+            <td width="50%">
+                <h3><u>Create New Account</u></h3>
+                <p><small>Register an operator name to join chats and create rooms:</small></p>
+                Username:<br>
+                <input type="text" id="reg-user" size="22"><br><br>
+                Password:<br>
+                <input type="password" id="reg-pass" size="22" onkeydown="checkRegEnter(event)"><br><br>
+                <button type="button" onclick="handleRegister()">Register Account</button>
+            </td>
+
+        </tr>
+    </table>
+
+    <br>
+
+    <table width="100%" border="1" cellpadding="4" cellspacing="0" class="nav-cell">
+        <tr>
+            <td><small>QuikChat Web Applet v2.1 &copy; 2026</small></td>
+            <td align="right"><small>Account Portal</small></td>
+        </tr>
+    </table>
+
+</td></tr>
+</table>
+
+<script type="text/javascript">
+    var activeUser = "";
+    var userDatabase = {};
+
+    function setDisplay(id, val) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = val;
+    }
+
+    function setText(id, val) {
+        var el = document.getElementById(id);
+        if (el) el.innerText = val;
+    }
+
+    function loadData() {
+        try {
+            var u = window.localStorage.getItem("qc2_active_user");
+            if (u) activeUser = u;
+            var db = window.localStorage.getItem("qc2_users");
+            if (db) userDatabase = JSON.parse(db);
+        } catch (e) {}
+    }
+
+    function saveData() {
+        try {
+            window.localStorage.setItem("qc2_active_user", activeUser);
+            window.localStorage.setItem("qc2_users", JSON.stringify(userDatabase));
+        } catch (e) {}
+    }
+
+    function getChatRedirectUrl() {
+        var hash = window.location.hash;
+        return (hash && hash.indexOf("#join=") === 0) ? ("index.html" + hash) : "index.html";
+    }
+
+    function initAccountPage() {
+        loadData();
+        var backLink = document.getElementById("back-to-chat-link");
+        if (backLink) backLink.href = getChatRedirectUrl();
+
+        if (activeUser !== "") {
+            setText("current-operator", activeUser);
+            setDisplay("already-logged-in", "block");
+        } else {
+            setDisplay("already-logged-in", "none");
+        }
+    }
+
+    function returnToChat() {
+        window.location.href = getChatRedirectUrl();
+    }
+
+    function checkLoginEnter(e) {
+        if ((e.keyCode || e.which) === 13) handleLogin();
+    }
+
+    function checkRegEnter(e) {
+        if ((e.keyCode || e.which) === 13) handleRegister();
+    }
+
+    function handleLogin() {
+        var u = document.getElementById("login-user").value.trim();
+        var p = document.getElementById("login-pass").value;
+
+        if (u === "" || p === "") {
+            alert("Please enter both your username and password.");
+            return;
+        }
+
+        if (userDatabase[u] && userDatabase[u] === p) {
+            activeUser = u;
+            saveData();
+            window.location.href = getChatRedirectUrl();
+        } else {
+            alert("Access Denied: Invalid username or password.");
+        }
+    }
+
+    function handleRegister() {
+        var u = document.getElementById("reg-user").value.trim();
+        var p = document.getElementById("reg-pass").value;
+
+        if (u === "" || p === "") {
+            alert("Please enter both a username and password.");
+            return;
+        }
+
+        if (userDatabase[u]) {
+            alert("Error: That operator name is already taken.");
+            return;
+        }
+
+        userDatabase[u] = p;
+        activeUser = u;
+        saveData();
+        alert("Account created! Welcome to QuikChat, " + u + ".");
+        window.location.href = getChatRedirectUrl();
+    }
+
+    function handleLogout() {
+        activeUser = "";
+        saveData();
+        setDisplay("already-logged-in", "none");
+        alert("You have been logged out.");
+    }
+</script>
+</body>
+</html>
