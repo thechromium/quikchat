@@ -1,11 +1,13 @@
-/* QuikChat v2.1 - Classic Web 1.0 & Windows 9x Stylesheet */
-
 body {
     background-color: #C0C0C0;
     color: #000000;
     font-family: "Times New Roman", Times, serif;
     font-size: 14px;
     margin: 16px;
+}
+
+img {
+    image-rendering: pixelated;
 }
 
 a {
@@ -38,6 +40,11 @@ table {
     border-bottom: 2px solid #404040;
 }
 
+.header-logo {
+    vertical-align: middle;
+    margin-right: 6px;
+}
+
 .header-link,
 .header-link:visited {
     color: #FFFFFF;
@@ -61,25 +68,29 @@ table {
     margin-bottom: 8px;
 }
 
-/* Room List Styling */
-#room-list {
+/* Room Lists Styling */
+#room-list,
+#vault-room-list {
     list-style-type: none;
     padding-left: 4px;
     margin-top: 6px;
     margin-bottom: 10px;
 }
 
-#room-list li {
+#room-list li,
+#vault-room-list li {
     padding: 3px 4px;
     font-family: "MS Sans Serif", Arial, sans-serif;
     font-size: 12px;
 }
 
-#room-list li a {
+#room-list li a,
+#vault-room-list li a {
     text-decoration: none;
 }
 
-#room-list li a:hover {
+#room-list li a:hover,
+#vault-room-list li a:hover {
     text-decoration: underline;
 }
 
@@ -175,4 +186,3 @@ button:active {
 .hidden {
     display: none;
 }
-
