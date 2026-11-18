@@ -71,8 +71,9 @@
                             <small>Members: <span id="header-room-members">SYSTEM</span></small>
                         </td>
                         <td align="right" valign="top">
-                            <button type="button" onclick="openMessageLogs()">Open message.html</button>
-                            <button type="button" onclick="clearChannelHistory()">Clear Log</button>
+                            <button type="button" onclick="syncFromCloud()">Sync Now</button>
+                            <button type="button" onclick="openMessageLogs()">Logs</button>
+                            <button type="button" onclick="clearChannelHistory()">Clear</button>
                         </td>
                     </tr>
                 </table>
@@ -119,7 +120,7 @@
     <table width="100%" border="1" cellpadding="4" cellspacing="0" class="nav-cell">
         <tr>
             <td><small>QuikChat Web Applet v2.2 &copy; 2026</small></td>
-            <td align="right"><small id="sync-status">Live Sync: Ready</small></td>
+            <td align="right"><small id="sync-status">Live Sync: Starting...</small></td>
         </tr>
     </table>
 
@@ -127,11 +128,12 @@
 </table>
 
 <script type="text/javascript">
-    var FIREBASE_URL = "https://firebaseio.com";
+    var FIREBASE_URL = "https://quikshare12-default-rtdb.firebaseio.com";
 
     var currentRoomId = "general";
     var activeUser = "";
     var lastRenderedHash = "";
+    var joinedThisSession = {};
     var roomsDatabase = {
         "general": { name: "General Lobby", creator: "SYSTEM", members: ["SYSTEM"], messages: [] }
     };
@@ -146,19 +148,17 @@
         if (el) el.innerText = val;
     }
 
-    function saveLocalBackup() {
+    function saveLocalArchive() {
         try {
             window.localStorage.setItem("qc2_active_user", activeUser);
             window.localStorage.setItem("qc2_rooms", JSON.stringify(roomsDatabase));
         } catch (e) {}
     }
 
-    function loadLocalData() {
+    function loadUserOnly() {
         try {
             var u = window.localStorage.getItem("qc2_active_user");
             activeUser = u ? u : "";
-            var rooms = window.localStorage.getItem("qc2_rooms");
-            if (rooms) roomsDatabase = JSON.parse(rooms);
         } catch (e) {}
     }
 
@@ -186,71 +186,95 @@
                     roomsDatabase[inviteCode] = {
                         name: readableName,
                         creator: "Host",
-                        members: [],
+                        members: ["SYSTEM"],
                         messages: []
                     };
-                    saveLocalBackup();
                 }
                 currentRoomId = inviteCode;
             }
         }
     }
 
-    function isFirebaseReady() {
-        return (FIREBASE_URL && FIREBASE_URL.indexOf("https://") === 0);
+    function parseMessagesObject(rawMsgs) {
+        var list = [];
+        if (!rawMsgs) return list;
+        if (Array.isArray(rawMsgs)) {
+            for (var i = 0; i < rawMsgs.length; i++) {
+                if (rawMsgs[i]) list.push(rawMsgs[i]);
+            }
+        } else {
+            var keys = Object.keys(rawMsgs).sort();
+            for (var k = 0; k < keys.length; k++) {
+                if (rawMsgs[keys[k]]) list.push(rawMsgs[keys[k]]);
+            }
+        }
+        return list;
     }
 
     function syncFromCloud() {
-        if (!isFirebaseReady()) {
-            setText("sync-status", "Mode: Local Only");
-            return;
-        }
-        fetch(FIREBASE_URL + "/rooms.json")
-            .then(function(res) { return res.json(); })
+        var url = FIREBASE_URL + "/rooms.json?nocache=" + new Date().getTime();
+        fetch(url, { method: "GET", cache: "no-store" })
+            .then(function(res) {
+                if (!res.ok) throw new Error("HTTP " + res.status);
+                return res.json();
+            })
             .then(function(cloudRooms) {
-                setText("sync-status", "Live Sync: Connected");
+                if (cloudRooms && cloudRooms.error) {
+                    setText("sync-status", "Firebase Error: " + cloudRooms.error);
+                    return;
+                }
+
+                setText("sync-status", "Live Sync: Connected (" + new Date().toLocaleTimeString() + ")");
+
+                var freshDb = {
+                    "general": { name: "General Lobby", creator: "SYSTEM", members: ["SYSTEM"], messages: [] }
+                };
+
                 if (cloudRooms) {
                     for (var id in cloudRooms) {
-                        if (cloudRooms.hasOwnProperty(id)) {
+                        if (cloudRooms.hasOwnProperty(id) && cloudRooms[id]) {
                             var cRoom = cloudRooms[id];
-                            var msgList = [];
-                            if (cRoom.messages) {
-                                if (Array.isArray(cRoom.messages)) {
-                                    msgList = cRoom.messages;
-                                } else {
-                                    for (var mKey in cRoom.messages) {
-                                        if (cRoom.messages.hasOwnProperty(mKey)) {
-                                            msgList.push(cRoom.messages[mKey]);
-                                        }
-                                    }
-                                }
-                            }
-                            roomsDatabase[id] = {
+                            freshDb[id] = {
                                 name: cRoom.name || id,
                                 creator: cRoom.creator || "SYSTEM",
-                                members: cRoom.members || ["SYSTEM"],
-                                messages: msgList
-                            };
-                        }
-                    }
-                    saveLocalBackup();
-var room = roomsDatabase[currentRoomId];
-if (room) {
-setText("header-room-name", room.name);
-setText("header-room-members", room.members.join(", "));
+members: Array.isArray(cRoom.members) ? cRoom.members : ["SYSTEM"],
+messages: parseMessagesObject(cRoom.messages)
+};
+}
+}
+}
+if (!freshDb[currentRoomId]) {
+var fallbackName = (roomsDatabase[currentRoomId] && roomsDatabase[currentRoomId].name) ? roomsDatabase[currentRoomId].name : currentRoomId;
+freshDb[currentRoomId] = {
+name: fallbackName,
+creator: "Host",
+members: ["SYSTEM"],
+messages: []
+};
+}
+roomsDatabase = freshDb;
+if (activeUser !== "") {
+ensureUserInRoom(currentRoomId, activeUser);
+}
+saveLocalArchive();
+var activeRoom = roomsDatabase[currentRoomId];
+if (activeRoom) {
+setText("header-room-name", activeRoom.name);
+setText("header-room-members", activeRoom.members.join(", "));
 }
 renderRoomList();
 renderMessages();
-}
 })
-.catch(function() {
-setText("sync-status", "Live Sync: Reconnecting...");
+.catch(function(err) {
+setText("sync-status", "Sync Error: " + err.message);
 });
 }
-function pushRoomMetaToCloud(roomId) {
-if (!isFirebaseReady()) return;
+function ensureUserInRoom(roomId, username) {
 var room = roomsDatabase[roomId];
 if (!room) return;
+var needsJoin = (room.members.indexOf(username) === -1);
+if (needsJoin) {
+room.members.push(username);
 fetch(FIREBASE_URL + "/rooms/" + encodeURIComponent(roomId) + ".json", {
 method: "PATCH",
 headers: { "Content-Type": "application/json" },
@@ -260,27 +284,13 @@ creator: room.creator,
 members: room.members
 })
 });
-}
-function initQuikChat() {
-loadLocalData();
-checkInviteLink();
-if (activeUser !== "") addMemberToRoom(currentRoomId, activeUser);
-updateAuthUI();
-renderRoomList();
-switchRoom(currentRoomId);
-syncFromCloud();
-setInterval(syncFromCloud, 2000);
-}
-function addMemberToRoom(roomId, username) {
-var room = roomsDatabase[roomId];
-if (!room) return;
-if (room.members.indexOf(username) === -1) {
-room.members.push(username);
-var joinMsg = { time: new Date().toLocaleTimeString(), sender: "SYSTEM", text: username + " joined the chat." };
-room.messages.push(joinMsg);
-saveLocalBackup();
-pushRoomMetaToCloud(roomId);
-if (isFirebaseReady()) {
+if (!joinedThisSession[roomId]) {
+joinedThisSession[roomId] = true;
+var joinMsg = {
+time: new Date().toLocaleTimeString(),
+sender: "SYSTEM",
+text: username + " joined the chat."
+};
 fetch(FIREBASE_URL + "/rooms/" + encodeURIComponent(roomId) + "/messages.json", {
 method: "POST",
 headers: { "Content-Type": "application/json" },
@@ -288,6 +298,15 @@ body: JSON.stringify(joinMsg)
 });
 }
 }
+}
+function initQuikChat() {
+loadUserOnly();
+checkInviteLink();
+updateAuthUI();
+renderRoomList();
+updateRoomHeaderAndLinks();
+syncFromCloud();
+setInterval(syncFromCloud, 1500);
 }
 function updateAuthUI() {
 var loggedIn = (activeUser !== "");
@@ -307,7 +326,7 @@ if (noticeLink) noticeLink.href = acctUrl;
 }
 function handleLogout() {
 activeUser = "";
-saveLocalBackup();
+saveLocalArchive();
 updateAuthUI();
 }
 function createNewRoom() {
@@ -321,25 +340,37 @@ return;
 var slug = rawName.replace(/[^a-zA-Z0-9]/g, "-");
 var randomCode = Math.floor(1000 + Math.random() * 9000);
 var roomId = slug + "_" + randomCode;
-var createdMsg = { time: new Date().toLocaleTimeString(), sender: "SYSTEM", text: "Chat '" + rawName + "' created by " + activeUser + "." };
+var createdMsg = {
+time: new Date().toLocaleTimeString(),
+sender: "SYSTEM",
+text: "Chat '" + rawName + "' created by " + activeUser + "."
+};
 roomsDatabase[roomId] = {
 name: rawName,
 creator: activeUser,
-members: [activeUser],
+members: ["SYSTEM", activeUser],
 messages: [createdMsg]
 };
-saveLocalBackup();
-if (isFirebaseReady()) {
-pushRoomMetaToCloud(roomId);
-fetch(FIREBASE_URL + "/rooms/" + encodeURIComponent(roomId) + "/messages.json", {
+joinedThisSession[roomId] = true;
+nameInput.value = "";
+switchRoom(roomId);
+fetch(FIREBASE_URL + "/rooms/" + encodeURIComponent(roomId) + ".json", {
+method: "PATCH",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({
+name: rawName,
+creator: activeUser,
+members: ["SYSTEM", activeUser]
+})
+}).then(function() {
+return fetch(FIREBASE_URL + "/rooms/" + encodeURIComponent(roomId) + "/messages.json", {
 method: "POST",
 headers: { "Content-Type": "application/json" },
 body: JSON.stringify(createdMsg)
 });
-}
-nameInput.value = "";
-renderRoomList();
-switchRoom(roomId);
+}).then(function() {
+syncFromCloud();
+});
 }
 function renderRoomList() {
 var listEl = document.getElementById("room-list");
@@ -369,12 +400,9 @@ listEl.appendChild(li);
 }
 }
 }
-function switchRoom(roomId) {
-if (!roomsDatabase[roomId]) roomId = "general";
-currentRoomId = roomId;
-lastRenderedHash = "";
-if (activeUser !== "") addMemberToRoom(currentRoomId, activeUser);
+function updateRoomHeaderAndLinks() {
 var room = roomsDatabase[currentRoomId];
+if (!room) return;
 setText("header-room-name", room.name);
 setText("header-room-members", room.members.join(", "));
 var fullHref = window.location.href;
@@ -387,8 +415,18 @@ var topLink = document.getElementById("top-account-link");
 var noticeLink = document.getElementById("notice-account-link");
 if (topLink) topLink.href = acctUrl;
 if (noticeLink) noticeLink.href = acctUrl;
+}
+function switchRoom(roomId) {
+if (!roomsDatabase[roomId]) roomId = "general";
+currentRoomId = roomId;
+lastRenderedHash = "";
+if (activeUser !== "") {
+ensureUserInRoom(currentRoomId, activeUser);
+}
+updateRoomHeaderAndLinks();
 renderRoomList();
 renderMessages();
+syncFromCloud();
 }
 function copyInviteLink() {
 var inviteInput = document.getElementById("invite-link-input");
@@ -414,20 +452,28 @@ time: new Date().toLocaleTimeString(),
 sender: activeUser,
 text: rawText
 };
-roomsDatabase[currentRoomId].messages.push(msgObj);
-saveLocalBackup();
 input.value = "";
+roomsDatabase[currentRoomId].messages.push(msgObj);
+lastRenderedHash = "";
 renderMessages();
-if (isFirebaseReady()) {
-pushRoomMetaToCloud(currentRoomId);
-fetch(FIREBASE_URL + "/rooms/" + encodeURIComponent(currentRoomId) + "/messages.json", {
+var room = roomsDatabase[currentRoomId];
+fetch(FIREBASE_URL + "/rooms/" + encodeURIComponent(currentRoomId) + ".json", {
+method: "PATCH",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({
+name: room.name,
+creator: room.creator,
+members: room.members
+})
+}).then(function() {
+return fetch(FIREBASE_URL + "/rooms/" + encodeURIComponent(currentRoomId) + "/messages.json", {
 method: "POST",
 headers: { "Content-Type": "application/json" },
 body: JSON.stringify(msgObj)
+});
 }).then(function() {
 syncFromCloud();
 });
-}
 }
 function renderMessages() {
 var win = document.getElementById("chat-window");
@@ -466,18 +512,18 @@ win.scrollTop = win.scrollHeight;
 }
 function clearChannelHistory() {
 var room = roomsDatabase[currentRoomId];
-if (confirm("Delete all messages in '" + room.name + "'?")) {
+if (confirm("Delete all messages in '" + room.name + "' for everyone?")) {
 room.messages = [];
-saveLocalBackup();
 lastRenderedHash = "";
 renderMessages();
-if (isFirebaseReady()) {
 fetch(FIREBASE_URL + "/rooms/" + encodeURIComponent(currentRoomId) + "/messages.json", {
 method: "DELETE"
+}).then(function() {
+syncFromCloud();
 });
 }
 }
-}
+
 
 
 
