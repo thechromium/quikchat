@@ -113,7 +113,7 @@ button {
     font-size: 12px;
     background-color: #D4D0C8;
     color: #000000;
-    padding: 3px 10px;
+    padding: 2px 8px;
     cursor: pointer;
     border-top: 2px solid #FFFFFF;
     border-left: 2px solid #FFFFFF;
@@ -126,7 +126,7 @@ button:active {
     border-left: 2px solid #404040;
     border-right: 2px solid #FFFFFF;
     border-bottom: 2px solid #FFFFFF;
-    padding: 4px 9px 2px 11px;
+    padding: 3px 7px 1px 9px;
 }
 
 /* Chat Feed Window */
