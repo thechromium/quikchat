@@ -2,69 +2,77 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>QuikChat v2.2 - Operator Accounts</title>
+<title>QuikChat v2.2 - Message Storage & Archive</title>
 <link rel="icon" type="image/png" href="logo.png">
 <link rel="stylesheet" href="style.css">
 </head>
-<body onload="initAccountPage()">
+<body onload="initMessageVault()">
 
-<table width="640" align="center" border="0" cellpadding="0" cellspacing="0" class="layout-wrapper">
+<table width="820" align="center" border="0" cellpadding="0" cellspacing="0" class="layout-wrapper">
 <tr><td>
 
     <!-- Top Application Title Bar -->
     <table width="100%" border="1" cellpadding="6" cellspacing="0" class="header-bar">
         <tr>
-            <td width="55%">
+            <td width="65%">
                 <img src="logo.png" alt="QuikChat" width="22" height="22" class="header-logo">
-                <font size="4"><b>QuikChat v2.2</b></font> <small><i>(Operator Account Center)</i></small>
+                <font size="4"><b>QuikChat v2.2</b></font> <small><i>(Message Storage &amp; Log Archive)</i></small>
             </td>
-            <td width="45%" align="right">
-                <a href="message.html" class="header-link"><b>[ Message Logs ]</b></a>&nbsp;
-                <a href="index.html" id="back-to-chat-link" class="header-link"><b>&laquo; Back to Chat</b></a>
+            <td width="35%" align="right">
+                <a href="index.html" class="header-link"><b>&laquo; Back to Chat</b></a>
             </td>
         </tr>
     </table>
 
     <br>
 
-    <!-- Active Session Box (Shown if Already Logged In) -->
-    <div id="already-logged-in" class="hidden">
-        <table width="100%" border="1" cellpadding="8" cellspacing="0" class="notice-table">
-            <tr>
-                <td>
-                    <b>Active Session:</b> You are currently logged in as <b><span id="current-operator"></span></b>.<br><br>
-                    <button type="button" onclick="returnToChat()">Enter QuikChat Rooms</button>
-                    <button type="button" onclick="handleLogout()">Log Out</button>
-                </td>
-            </tr>
-        </table>
-        <br>
-    </div>
-
-    <!-- 2-Column Login & Register Grid -->
-    <table width="100%" border="1" cellpadding="8" cellspacing="0">
+    <!-- Main 2-Column Storage Grid -->
+    <table width="100%" border="1" cellpadding="6" cellspacing="0">
         <tr valign="top">
 
-            <!-- Left Column: Log In -->
-            <td width="50%" class="nav-cell">
-                <h3><u>Operator Log In</u></h3>
-                <p><small>Already have a QuikChat account? Sign in below:</small></p>
-                Username:<br>
-                <input type="text" id="login-user" size="22"><br><br>
-                Password:<br>
-                <input type="password" id="login-pass" size="22" onkeydown="checkLoginEnter(event)"><br><br>
-                <button type="button" onclick="handleLogin()">Log In</button>
+            <!-- Left Sidebar: Stored Rooms & Export -->
+            <td width="30%" class="nav-cell">
+                <h3><u>Stored Channels</u></h3>
+                <p><small>Select a room to inspect its saved chat logs:</small></p>
+                <ul id="vault-room-list"></ul>
+
+                <hr size="1">
+
+                <h4><u>Export &amp; Backup</u></h4>
+                <p><small>Download your saved chat logs as a standalone file:</small></p>
+                <button type="button" onclick="downloadHtmlArchive()">Save Logs as .HTML</button><br><br>
+                <button type="button" onclick="downloadJsonBackup()">Export Backup (.JSON)</button>
             </td>
 
-            <!-- Right Column: Register New Account -->
-            <td width="50%">
-                <h3><u>Create New Account</u></h3>
-                <p><small>Register an operator name to join chats and create rooms:</small></p>
-                Username:<br>
-                <input type="text" id="reg-user" size="22"><br><br>
-                Password:<br>
-                <input type="password" id="reg-pass" size="22" onkeydown="checkRegEnter(event)"><br><br>
-                <button type="button" onclick="handleRegister()">Register Account</button>
+            <!-- Right Main Area: Stored Messages Viewer -->
+            <td width="70%">
+                <table width="100%" border="0" cellpadding="2" cellspacing="0">
+                    <tr>
+                        <td>
+                            <b>Stored Log: <span id="vault-room-name">General Lobby</span></b><br>
+                            <small>Total Saved Messages: <span id="vault-msg-count">0</span></small>
+                        </td>
+                        <td align="right" valign="top">
+                            <button type="button" onclick="refreshVault()">Refresh</button>
+                            <button type="button" onclick="deleteRoomLogs()">Delete Room Logs</button>
+                        </td>
+                    </tr>
+                </table>
+
+                <br>
+
+                <!-- Stored Message Output -->
+                <div id="vault-log-window" class="chat-log"><i>Loading stored messages...</i></div>
+
+                <br>
+
+                <!-- Quick Append Entry -->
+                <table width="100%" border="0" cellpadding="2" cellspacing="0">
+                    <tr>
+                        <td width="82%"><input type="text" id="vault-note-box" class="msg-input" placeholder="Write directly to message storage..." onkeydown="checkVaultEnter(event)"></td>
+                        <td width="18%" align="right"><button type="button" onclick="appendMessageToStorage()" class="send-btn">Store</button></td>
+                    </tr>
+                </table>
             </td>
 
         </tr>
@@ -74,8 +82,8 @@
 
     <table width="100%" border="1" cellpadding="4" cellspacing="0" class="nav-cell">
         <tr>
-            <td><small>QuikChat Web Applet v2.2 &copy; 2026</small></td>
-            <td align="right"><small>Account Portal</small></td>
+            <td><small>QuikChat Message Storage Module &copy; 2026</small></td>
+            <td align="right"><small>Storage Key: qc2_rooms</small></td>
         </tr>
     </table>
 
@@ -83,110 +91,189 @@
 </table>
 
 <script type="text/javascript">
+    var selectedRoomId = "general";
     var activeUser = "";
-    var userDatabase = {};
-
-    function setDisplay(id, val) {
-        var el = document.getElementById(id);
-        if (el) el.style.display = val;
-    }
+    var roomsDatabase = {
+        "general": { name: "General Lobby", creator: "SYSTEM", members: ["SYSTEM"], messages: [] }
+    };
 
     function setText(id, val) {
         var el = document.getElementById(id);
         if (el) el.innerText = val;
     }
 
-    function loadData() {
+    function loadStorage() {
         try {
             var u = window.localStorage.getItem("qc2_active_user");
             if (u) activeUser = u;
-            var db = window.localStorage.getItem("qc2_users");
-            if (db) userDatabase = JSON.parse(db);
+            var rooms = window.localStorage.getItem("qc2_rooms");
+            if (rooms) roomsDatabase = JSON.parse(rooms);
         } catch (e) {}
     }
 
-    function saveData() {
+    function saveStorage() {
         try {
-            window.localStorage.setItem("qc2_active_user", activeUser);
-            window.localStorage.setItem("qc2_users", JSON.stringify(userDatabase));
+            window.localStorage.setItem("qc2_rooms", JSON.stringify(roomsDatabase));
         } catch (e) {}
     }
 
-    function getChatRedirectUrl() {
-        var hash = window.location.hash;
-        return (hash && hash.indexOf("#join=") === 0) ? ("index.html" + hash) : "index.html";
+    function initMessageVault() {
+        loadStorage();
+        if (!roomsDatabase[selectedRoomId]) selectedRoomId = "general";
+        renderVaultRooms();
+        renderVaultMessages();
     }
 
-    function initAccountPage() {
-        loadData();
-        var backLink = document.getElementById("back-to-chat-link");
-        if (backLink) backLink.href = getChatRedirectUrl();
+    function refreshVault() {
+        loadStorage();
+        renderVaultRooms();
+        renderVaultMessages();
+    }
 
-        if (activeUser !== "") {
-            setText("current-operator", activeUser);
-            setDisplay("already-logged-in", "block");
-        } else {
-            setDisplay("already-logged-in", "none");
+    function selectVaultRoom(roomId) {
+        if (!roomsDatabase[roomId]) return;
+        selectedRoomId = roomId;
+        renderVaultRooms();
+        renderVaultMessages();
+    }
+
+    function renderVaultRooms() {
+        var listEl = document.getElementById("vault-room-list");
+        if (!listEl) return;
+        listEl.innerHTML = "";
+
+        for (var id in roomsDatabase) {
+            if (roomsDatabase.hasOwnProperty(id)) {
+                var room = roomsDatabase[id];
+                var count = room.messages ? room.messages.length : 0;
+                var li = document.createElement("li");
+
+                if (id === selectedRoomId) {
+                    var b = document.createElement("b");
+                    b.innerText = "> " + room.name + " (" + count + ")";
+                    li.appendChild(b);
+                } else {
+                    var a = document.createElement("a");
+                    a.href = "#";
+                    a.innerText = "# " + room.name + " (" + count + ")";
+                    a.onclick = (function(targetId) {
+                        return function() {
+                            selectVaultRoom(targetId);
+                            return false;
+                        };
+                    })(id);
+                    li.appendChild(a);
+                }
+                listEl.appendChild(li);
+            }
         }
     }
 
-    function returnToChat() {
-        window.location.href = getChatRedirectUrl();
-    }
+    function renderVaultMessages() {
+        var win = document.getElementById("vault-log-window");
+        if (!win) return;
+        win.innerHTML = "";
 
-    function checkLoginEnter(e) {
-        if ((e.keyCode || e.which) === 13) handleLogin();
-    }
+        var room = roomsDatabase[selectedRoomId];
+        var messages = room ? room.messages : [];
+        setText("vault-room-name", room ? room.name : "General Lobby");
+        setText("vault-msg-count", messages ? messages.length : 0);
 
-    function checkRegEnter(e) {
-        if ((e.keyCode || e.which) === 13) handleRegister();
-    }
-
-    function handleLogin() {
-        var u = document.getElementById("login-user").value.trim();
-        var p = document.getElementById("login-pass").value;
-
-        if (u === "" || p === "") {
-            alert("Please enter both your username and password.");
+        if (!messages || messages.length === 0) {
+            var empty = document.createElement("i");
+            empty.innerText = "*** No messages stored in " + room.name + " yet. ***";
+            win.appendChild(empty);
             return;
         }
 
-        if (userDatabase[u] && userDatabase[u] === p) {
-            activeUser = u;
-            saveData();
-            window.location.href = getChatRedirectUrl();
-        } else {
-            alert("Access Denied: Invalid username or password.");
+        for (var i = 0; i < messages.length; i++) {
+            var line = document.createElement("div");
+            if (messages[i].sender === "SYSTEM") {
+                line.style.color = "#008000";
+                line.style.fontStyle = "italic";
+                line.innerText = "[" + messages[i].time + "] * " + messages[i].text;
+            } else {
+                var prefix = document.createTextNode("[" + messages[i].time + "] ");
+                var boldUser = document.createElement("b");
+                boldUser.innerText = "<" + messages[i].sender + "> ";
+                var msgText = document.createTextNode(messages[i].text);
+                line.appendChild(prefix);
+                line.appendChild(boldUser);
+                line.appendChild(msgText);
+            }
+            win.appendChild(line);
+        }
+        win.scrollTop = win.scrollHeight;
+    }
+
+    function checkVaultEnter(e) {
+        if ((e.keyCode || e.which) === 13) appendMessageToStorage();
+    }
+
+    function appendMessageToStorage() {
+        var input = document.getElementById("vault-note-box");
+        var rawText = input.value;
+        if (rawText.trim() === "") return;
+
+        var senderName = (activeUser !== "") ? activeUser : "ARCHIVE";
+        roomsDatabase[selectedRoomId].messages.push({
+            time: new Date().toLocaleTimeString(),
+            sender: senderName,
+            text: rawText
+        });
+
+        saveStorage();
+        input.value = "";
+        renderVaultRooms();
+        renderVaultMessages();
+    }
+
+    function deleteRoomLogs() {
+        var room = roomsDatabase[selectedRoomId];
+        if (!room) return;
+        if (confirm("Clear all stored messages for '" + room.name + "'?")) {
+            room.messages = [];
+            saveStorage();
+            renderVaultRooms();
+            renderVaultMessages();
         }
     }
 
-    function handleRegister() {
-        var u = document.getElementById("reg-user").value.trim();
-        var p = document.getElementById("reg-pass").value;
-
-        if (u === "" || p === "") {
-            alert("Please enter both a username and password.");
-            return;
-        }
-
-        if (userDatabase[u]) {
-            alert("Error: That operator name is already taken.");
-            return;
-        }
-
-        userDatabase[u] = p;
-        activeUser = u;
-        saveData();
-        alert("Account created! Welcome to QuikChat, " + u + ".");
-        window.location.href = getChatRedirectUrl();
+    function triggerDownload(filename, content, mimeType) {
+        var blob = new Blob([content], { type: mimeType });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
 
-    function handleLogout() {
-        activeUser = "";
-        saveData();
-        setDisplay("already-logged-in", "none");
-        alert("You have been logged out.");
+    function downloadHtmlArchive() {
+        var room = roomsDatabase[selectedRoomId];
+        var messages = room ? room.messages : [];
+        var out = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>QuikChat Archive - " + room.name + "</title></head>";
+        out += "<body style='font-family: Courier New, monospace; background:#FFFFFF; color:#000000; padding:16px;'>";
+        out += "<h2>QuikChat Saved Log: " + room.name + "</h2><hr>";
+        for (var i = 0; i < messages.length; i++) {
+            var safeText = messages[i].text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            out += "<div>[" + messages[i].time + "] <b>" + messages[i].sender + ":</b> " + safeText + "</div>";
+        }
+        out += "</body></html>";
+        triggerDownload("quikchat_" + selectedRoomId + "_messages.html", out, "text/html");
     }
+
+function downloadJsonBackup() {
+var jsonText = JSON.stringify(roomsDatabase, null, 2);
+triggerDownload("quikchat_messages_backup.json", jsonText, "application/json");
+}
+window.addEventListener("storage", function(e) {
+if (e.key === "qc2_rooms" || e.key === "qc2_active_user") {
+refreshVault();
+}
+});
 </script>
 </body>
 </html>
