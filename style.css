@@ -1,9 +1,10 @@
+
 body {
-    background-color: #C0C0C0;
+    background-color: #B8C0C8;
     color: #000000;
     font-family: "Times New Roman", Times, serif;
     font-size: 14px;
-    margin: 16px;
+    margin: 18px;
 }
 
 img {
@@ -19,25 +20,28 @@ a:visited {
 }
 
 a:hover {
-    color: #FF0000;
+    color: #CC0000;
 }
 
-table {
-    background-color: #FFFFFF;
-}
-
+/* Outer Windows 9x Application Frame */
 .layout-wrapper {
-    background-color: transparent;
-}
-
-/* Top Navy Application Header */
-.header-bar {
-    background-color: #000080;
-    color: #FFFFFF;
+    background-color: #D4D0C8;
     border-top: 2px solid #FFFFFF;
     border-left: 2px solid #FFFFFF;
     border-right: 2px solid #404040;
     border-bottom: 2px solid #404040;
+    padding: 3px;
+}
+
+table {
+    background-color: #F4F3EF;
+}
+
+/* Sleek Navy-to-Royal-Blue Title Bar */
+.header-bar {
+    background: linear-gradient(90deg, #000080 0%, #1084D0 100%);
+    color: #FFFFFF;
+    border: none;
 }
 
 .header-logo {
@@ -54,12 +58,12 @@ table {
 }
 
 .header-link:hover {
-    color: #FFFF00;
+    color: #FFFF80;
 }
 
 /* Sidebar & Footer Cells */
 .nav-cell {
-    background-color: #E0E0E0;
+    background-color: #E4E2DC;
 }
 
 .nav-cell h3,
@@ -72,26 +76,38 @@ table {
 #room-list,
 #vault-room-list {
     list-style-type: none;
-    padding-left: 4px;
+    padding-left: 0;
     margin-top: 6px;
     margin-bottom: 10px;
 }
 
 #room-list li,
 #vault-room-list li {
-    padding: 3px 4px;
+    padding: 4px 6px;
+    margin-bottom: 2px;
     font-family: "MS Sans Serif", Arial, sans-serif;
     font-size: 12px;
+}
+
+#room-list li b,
+#vault-room-list li b {
+    display: block;
+    background-color: #000080;
+    color: #FFFFFF;
+    padding: 3px 5px;
+    margin: -3px -5px;
 }
 
 #room-list li a,
 #vault-room-list li a {
     text-decoration: none;
+    display: block;
 }
 
 #room-list li a:hover,
 #vault-room-list li a:hover {
-    text-decoration: underline;
+    background-color: #D0D8E8;
+    text-decoration: none;
 }
 
 /* Classic 3D Beveled Buttons & Inputs */
@@ -101,11 +117,11 @@ input[type="password"] {
     font-size: 12px;
     background-color: #FFFFFF;
     color: #000000;
-    padding: 3px 4px;
+    padding: 4px 5px;
     border-top: 2px solid #808080;
     border-left: 2px solid #808080;
-    border-right: 2px solid #DFDFDF;
-    border-bottom: 2px solid #DFDFDF;
+    border-right: 2px solid #FFFFFF;
+    border-bottom: 2px solid #FFFFFF;
 }
 
 button {
@@ -113,7 +129,7 @@ button {
     font-size: 12px;
     background-color: #D4D0C8;
     color: #000000;
-    padding: 2px 8px;
+    padding: 3px 9px;
     cursor: pointer;
     border-top: 2px solid #FFFFFF;
     border-left: 2px solid #FFFFFF;
@@ -121,41 +137,46 @@ button {
     border-bottom: 2px solid #404040;
 }
 
+button:hover {
+    background-color: #DCD8D0;
+}
+
 button:active {
     border-top: 2px solid #404040;
     border-left: 2px solid #404040;
     border-right: 2px solid #FFFFFF;
     border-bottom: 2px solid #FFFFFF;
-    padding: 3px 7px 1px 9px;
+    padding: 4px 8px 2px 10px;
 }
 
 /* Chat Feed Window */
 .chat-log {
     font-family: "Courier New", Courier, monospace;
     font-size: 13px;
-    line-height: 1.4;
-    height: 280px;
+    line-height: 1.45;
+    height: 300px;
     overflow-y: scroll;
     background-color: #FFFFFF;
-    padding: 8px;
+    padding: 10px;
+    margin-top: 6px;
     border-top: 2px solid #808080;
     border-left: 2px solid #808080;
-    border-right: 2px solid #DFDFDF;
-    border-bottom: 2px solid #DFDFDF;
+    border-right: 2px solid #FFFFFF;
+    border-bottom: 2px solid #FFFFFF;
 }
 
 .chat-log div {
-    margin-bottom: 3px;
+    margin-bottom: 4px;
     word-wrap: break-word;
 }
 
 /* Invite Link Box */
 .invite-box {
-    background-color: #F0F8FF;
-    border: 1px dashed #000080;
+    background-color: #EEF4FA;
+    border: 1px solid #7A96DF;
     padding: 6px;
     margin-top: 6px;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 
 .invite-table {
@@ -164,7 +185,7 @@ button:active {
 
 .invite-input {
     width: 96%;
-    background-color: #FFFFF8;
+    background-color: #FFFFFF;
 }
 
 /* Message Input Row */
@@ -180,7 +201,7 @@ button:active {
 /* Logged-Out & Active Session Notice Banner */
 .notice-table {
     background-color: #FFFFE0;
-    border: 1px solid #808000;
+    border: 1px solid #999900;
 }
 
 .hidden {
