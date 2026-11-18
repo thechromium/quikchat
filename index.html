@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>QuikChat v2.1 - Multi-User Chat Applet</title>
-<link rel="icon" type="image/png" href="quikchat.png">
+<title>QuikChat v2.2 - Live Multi-User Chat</title>
+<link rel="icon" type="image/png" href="logo.png">
 <link rel="stylesheet" href="style.css">
 </head>
 <body onload="initQuikChat()">
@@ -14,7 +14,10 @@
     <!-- Top Application Title Bar -->
     <table width="100%" border="1" cellpadding="6" cellspacing="0" class="header-bar">
         <tr>
-            <td width="50%"><font size="4"><b>QuikChat v2.1</b></font> <small><i>(Multi-User Group Chat Applet)</i></small></td>
+            <td width="50%">
+                <img src="logo.png" alt="QuikChat" width="22" height="22" class="header-logo">
+                <font size="4"><b>QuikChat v2.2</b></font> <small><i>(Live Multi-User Chat)</i></small>
+            </td>
             <td width="50%" align="right">
                 <a href="message.html" class="header-link"><b>[ Message Logs ]</b></a>&nbsp;
                 <span id="auth-logged-out">
@@ -86,7 +89,7 @@
                 </div>
                 
                 <!-- Chat Output Window -->
-                <div id="chat-window" class="chat-log"><i>Loading QuikChat message buffers...</i></div>
+                <div id="chat-window" class="chat-log"><i>Connecting to QuikChat live relay...</i></div>
 
                 <br>
 
@@ -115,8 +118,8 @@
 
     <table width="100%" border="1" cellpadding="4" cellspacing="0" class="nav-cell">
         <tr>
-            <td><small>QuikChat Web Applet v2.1 &copy; 2026</small></td>
-            <td align="right"><small>Best viewed at 800x600 or higher</small></td>
+            <td><small>QuikChat Web Applet v2.2 &copy; 2026</small></td>
+            <td align="right"><small id="sync-status">Live Sync: Ready</small></td>
         </tr>
     </table>
 
@@ -124,9 +127,11 @@
 </table>
 
 <script type="text/javascript">
+    var FIREBASE_URL = "https://firebaseio.com";
+
     var currentRoomId = "general";
     var activeUser = "";
-    var userDatabase = {};
+    var lastRenderedHash = "";
     var roomsDatabase = {
         "general": { name: "General Lobby", creator: "SYSTEM", members: ["SYSTEM"], messages: [] }
     };
@@ -141,20 +146,17 @@
         if (el) el.innerText = val;
     }
 
-    function saveData() {
+    function saveLocalBackup() {
         try {
             window.localStorage.setItem("qc2_active_user", activeUser);
-            window.localStorage.setItem("qc2_users", JSON.stringify(userDatabase));
             window.localStorage.setItem("qc2_rooms", JSON.stringify(roomsDatabase));
         } catch (e) {}
     }
 
-    function loadData() {
+    function loadLocalData() {
         try {
             var u = window.localStorage.getItem("qc2_active_user");
             activeUser = u ? u : "";
-            var db = window.localStorage.getItem("qc2_users");
-            if (db) userDatabase = JSON.parse(db);
             var rooms = window.localStorage.getItem("qc2_rooms");
             if (rooms) roomsDatabase = JSON.parse(rooms);
         } catch (e) {}
@@ -185,54 +187,127 @@
                         name: readableName,
                         creator: "Host",
                         members: [],
-                        messages: [{ time: new Date().toLocaleTimeString(), sender: "SYSTEM", text: "Joined room via invite link (" + inviteCode + ")." }]
+                        messages: []
                     };
-                    saveData();
+                    saveLocalBackup();
                 }
                 currentRoomId = inviteCode;
             }
         }
     }
 
-    function initQuikChat() {
-        loadData();
-        checkInviteLink();
-        if (activeUser !== "") addMemberToRoom(currentRoomId, activeUser);
-        updateAuthUI();
-        renderRoomList();
-        switchRoom(currentRoomId);
+    function isFirebaseReady() {
+        return (FIREBASE_URL && FIREBASE_URL.indexOf("https://") === 0);
     }
 
-    function addMemberToRoom(roomId, username) {
-        var room = roomsDatabase[roomId];
-        if (!room) return;
-        if (room.members.indexOf(username) === -1) {
-            room.members.push(username);
-            room.messages.push({ time: new Date().toLocaleTimeString(), sender: "SYSTEM", text: username + " joined the chat." });
-            saveData();
+    function syncFromCloud() {
+        if (!isFirebaseReady()) {
+            setText("sync-status", "Mode: Local Only");
+            return;
         }
-    }
-
-    function updateAuthUI() {
-        var loggedIn = (activeUser !== "");
-        setDisplay("auth-logged-out", loggedIn ? "none" : "inline");
-        setDisplay("auth-logged-in", loggedIn ? "inline" : "none");
-        if (loggedIn) setText("display-username", activeUser);
-        setDisplay("register-box", loggedIn ? "none" : "block");
-        setDisplay("create-room-box", loggedIn ? "block" : "none");
-        setDisplay("chat-input-area", loggedIn ? "block" : "none");
-        setDisplay("chat-blocked-area", loggedIn ? "none" : "block");
-        setDisplay("invite-panel", loggedIn ? "block" : "none");
-
-        var acctUrl = getAccountUrl();
-        var topLink = document.getElementById("top-account-link");
-        var noticeLink = document.getElementById("notice-account-link");
-        if (topLink) topLink.href = acctUrl;
+        fetch(FIREBASE_URL + "/rooms.json")
+            .then(function(res) { return res.json(); })
+            .then(function(cloudRooms) {
+                setText("sync-status", "Live Sync: Connected");
+                if (cloudRooms) {
+                    for (var id in cloudRooms) {
+                        if (cloudRooms.hasOwnProperty(id)) {
+                            var cRoom = cloudRooms[id];
+                            var msgList = [];
+                            if (cRoom.messages) {
+                                if (Array.isArray(cRoom.messages)) {
+                                    msgList = cRoom.messages;
+                                } else {
+                                    for (var mKey in cRoom.messages) {
+                                        if (cRoom.messages.hasOwnProperty(mKey)) {
+                                            msgList.push(cRoom.messages[mKey]);
+                                        }
+                                    }
+                                }
+                            }
+                            roomsDatabase[id] = {
+                                name: cRoom.name || id,
+                                creator: cRoom.creator || "SYSTEM",
+                                members: cRoom.members || ["SYSTEM"],
+                                messages: msgList
+                            };
+                        }
+                    }
+                    saveLocalBackup();
+var room = roomsDatabase[currentRoomId];
+if (room) {
+setText("header-room-name", room.name);
+setText("header-room-members", room.members.join(", "));
+}
+renderRoomList();
+renderMessages();
+}
+})
+.catch(function() {
+setText("sync-status", "Live Sync: Reconnecting...");
+});
+}
+function pushRoomMetaToCloud(roomId) {
+if (!isFirebaseReady()) return;
+var room = roomsDatabase[roomId];
+if (!room) return;
+fetch(FIREBASE_URL + "/rooms/" + encodeURIComponent(roomId) + ".json", {
+method: "PATCH",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({
+name: room.name,
+creator: room.creator,
+members: room.members
+})
+});
+}
+function initQuikChat() {
+loadLocalData();
+checkInviteLink();
+if (activeUser !== "") addMemberToRoom(currentRoomId, activeUser);
+updateAuthUI();
+renderRoomList();
+switchRoom(currentRoomId);
+syncFromCloud();
+setInterval(syncFromCloud, 2000);
+}
+function addMemberToRoom(roomId, username) {
+var room = roomsDatabase[roomId];
+if (!room) return;
+if (room.members.indexOf(username) === -1) {
+room.members.push(username);
+var joinMsg = { time: new Date().toLocaleTimeString(), sender: "SYSTEM", text: username + " joined the chat." };
+room.messages.push(joinMsg);
+saveLocalBackup();
+pushRoomMetaToCloud(roomId);
+if (isFirebaseReady()) {
+fetch(FIREBASE_URL + "/rooms/" + encodeURIComponent(roomId) + "/messages.json", {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify(joinMsg)
+});
+}
+}
+}
+function updateAuthUI() {
+var loggedIn = (activeUser !== "");
+setDisplay("auth-logged-out", loggedIn ? "none" : "inline");
+setDisplay("auth-logged-in", loggedIn ? "inline" : "none");
+if (loggedIn) setText("display-username", activeUser);
+setDisplay("register-box", loggedIn ? "none" : "block");
+setDisplay("create-room-box", loggedIn ? "block" : "none");
+setDisplay("chat-input-area", loggedIn ? "block" : "none");
+setDisplay("chat-blocked-area", loggedIn ? "none" : "block");
+setDisplay("invite-panel", loggedIn ? "block" : "none");
+var acctUrl = getAccountUrl();
+var topLink = document.getElementById("top-account-link");
+var noticeLink = document.getElementById("notice-account-link");
+if (topLink) topLink.href = acctUrl;
 if (noticeLink) noticeLink.href = acctUrl;
 }
 function handleLogout() {
 activeUser = "";
-saveData();
+saveLocalBackup();
 updateAuthUI();
 }
 function createNewRoom() {
@@ -246,13 +321,22 @@ return;
 var slug = rawName.replace(/[^a-zA-Z0-9]/g, "-");
 var randomCode = Math.floor(1000 + Math.random() * 9000);
 var roomId = slug + "_" + randomCode;
+var createdMsg = { time: new Date().toLocaleTimeString(), sender: "SYSTEM", text: "Chat '" + rawName + "' created by " + activeUser + "." };
 roomsDatabase[roomId] = {
 name: rawName,
 creator: activeUser,
 members: [activeUser],
-messages: [{ time: new Date().toLocaleTimeString(), sender: "SYSTEM", text: "Chat '" + rawName + "' created by " + activeUser + "." }]
+messages: [createdMsg]
 };
-saveData();
+saveLocalBackup();
+if (isFirebaseReady()) {
+pushRoomMetaToCloud(roomId);
+fetch(FIREBASE_URL + "/rooms/" + encodeURIComponent(roomId) + "/messages.json", {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify(createdMsg)
+});
+}
 nameInput.value = "";
 renderRoomList();
 switchRoom(roomId);
@@ -288,6 +372,7 @@ listEl.appendChild(li);
 function switchRoom(roomId) {
 if (!roomsDatabase[roomId]) roomId = "general";
 currentRoomId = roomId;
+lastRenderedHash = "";
 if (activeUser !== "") addMemberToRoom(currentRoomId, activeUser);
 var room = roomsDatabase[currentRoomId];
 setText("header-room-name", room.name);
@@ -324,17 +409,35 @@ if (activeUser === "") return;
 var input = document.getElementById("msg-box");
 var rawText = input.value;
 if (rawText.trim() === "") return;
-roomsDatabase[currentRoomId].messages.push({ time: new Date().toLocaleTimeString(), sender: activeUser, text: rawText });
-saveData();
+var msgObj = {
+time: new Date().toLocaleTimeString(),
+sender: activeUser,
+text: rawText
+};
+roomsDatabase[currentRoomId].messages.push(msgObj);
+saveLocalBackup();
 input.value = "";
 renderMessages();
+if (isFirebaseReady()) {
+pushRoomMetaToCloud(currentRoomId);
+fetch(FIREBASE_URL + "/rooms/" + encodeURIComponent(currentRoomId) + "/messages.json", {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify(msgObj)
+}).then(function() {
+syncFromCloud();
+});
+}
 }
 function renderMessages() {
 var win = document.getElementById("chat-window");
 if (!win) return;
-win.innerHTML = "";
 var room = roomsDatabase[currentRoomId];
 var messages = room ? room.messages : [];
+var currentHash = currentRoomId + ":" + JSON.stringify(messages);
+if (currentHash === lastRenderedHash) return;
+lastRenderedHash = currentHash;
+win.innerHTML = "";
 if (!messages || messages.length === 0) {
 var emptyNote = document.createElement("i");
 emptyNote.innerText = "*** Welcome to " + room.name + ". No messages yet. ***";
@@ -342,6 +445,7 @@ win.appendChild(emptyNote);
 return;
 }
 for (var i = 0; i < messages.length; i++) {
+if (!messages[i]) continue;
 var line = document.createElement("div");
 if (messages[i].sender === "SYSTEM") {
 line.style.color = "#008000";
@@ -362,20 +466,18 @@ win.scrollTop = win.scrollHeight;
 }
 function clearChannelHistory() {
 var room = roomsDatabase[currentRoomId];
-if (confirm("Delete all saved messages in '" + room.name + "'?")) {
+if (confirm("Delete all messages in '" + room.name + "'?")) {
 room.messages = [];
-saveData();
+saveLocalBackup();
+lastRenderedHash = "";
 renderMessages();
-}
-}
-window.addEventListener("storage", function(e) {
-if (e.key === "qc2_rooms" || e.key === "qc2_active_user") {
-loadData();
-updateAuthUI();
-renderRoomList();
-renderMessages();
-}
+if (isFirebaseReady()) {
+fetch(FIREBASE_URL + "/rooms/" + encodeURIComponent(currentRoomId) + "/messages.json", {
+method: "DELETE"
 });
+}
+}
+}
 
 
 
