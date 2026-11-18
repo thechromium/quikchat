@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>QuikChat v2.2 - Message Storage & Archive</title>
+<title>QuikChat v2.2 - Live Message Logs & Archive</title>
 <link rel="icon" type="image/png" href="quikchat.png">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -16,7 +16,7 @@
         <tr>
             <td width="65%">
                 <img src="quikchat.png" alt="QuikChat" width="22" height="22" class="header-logo">
-                <font size="4"><b>QuikChat v2.2</b></font> <small><i>(Message Storage &amp; Log Archive)</i></small>
+                <font size="4"><b>QuikChat v2.2</b></font> <small><i>(Live Message Logs &amp; Archive)</i></small>
             </td>
             <td width="35%" align="right">
                 <a href="index.html" class="header-link"><b>&laquo; Back to Chat</b></a>
@@ -30,16 +30,16 @@
     <table width="100%" border="1" cellpadding="6" cellspacing="0">
         <tr valign="top">
 
-            <!-- Left Sidebar: Stored Rooms & Export -->
+            <!-- Left Sidebar: Cloud Rooms & Export -->
             <td width="30%" class="nav-cell">
-                <h3><u>Stored Channels</u></h3>
-                <p><small>Select a room to inspect its saved chat logs:</small></p>
-                <ul id="vault-room-list"></ul>
+                <h3><u>Cloud Channels</u></h3>
+                <p><small>Select a room to inspect its live Firebase logs:</small></p>
+                <ul id="vault-room-list"><li><i>Loading rooms...</i></li></ul>
 
                 <hr size="1">
 
                 <h4><u>Export &amp; Backup</u></h4>
-                <p><small>Download your saved chat logs as a standalone file:</small></p>
+                <p><small>Download live chat logs as a standalone file:</small></p>
                 <button type="button" onclick="downloadHtmlArchive()">Save Logs as .HTML</button><br><br>
                 <button type="button" onclick="downloadJsonBackup()">Export Backup (.JSON)</button>
             </td>
@@ -49,12 +49,12 @@
                 <table width="100%" border="0" cellpadding="2" cellspacing="0">
                     <tr>
                         <td>
-                            <b>Stored Log: <span id="vault-room-name">General Lobby</span></b><br>
-                            <small>Total Saved Messages: <span id="vault-msg-count">0</span></small>
+                            <b>Cloud Log: <span id="vault-room-name">General Lobby</span></b><br>
+                            <small>Total Cloud Messages: <span id="vault-msg-count">0</span></small>
                         </td>
                         <td align="right" valign="top">
-                            <button type="button" onclick="refreshVault()">Refresh</button>
-                            <button type="button" onclick="deleteRoomLogs()">Delete Room Logs</button>
+                            <button type="button" onclick="refreshVault()">Sync Logs</button>
+                            <button type="button" onclick="deleteRoomLogs()">Clear Cloud Log</button>
                         </td>
                     </tr>
                 </table>
@@ -62,15 +62,15 @@
                 <br>
 
                 <!-- Stored Message Output -->
-                <div id="vault-log-window" class="chat-log"><i>Loading stored messages...</i></div>
+                <div id="vault-log-window" class="chat-log"><i>Fetching messages from Firebase...</i></div>
 
                 <br>
 
                 <!-- Quick Append Entry -->
                 <table width="100%" border="0" cellpadding="2" cellspacing="0">
                     <tr>
-                        <td width="82%"><input type="text" id="vault-note-box" class="msg-input" placeholder="Write directly to message storage..." onkeydown="checkVaultEnter(event)"></td>
-                        <td width="18%" align="right"><button type="button" onclick="appendMessageToStorage()" class="send-btn">Store</button></td>
+                        <td width="82%"><input type="text" id="vault-note-box" class="msg-input" placeholder="Post an archive note directly to Firebase..." onkeydown="checkVaultEnter(event)"></td>
+                        <td width="18%" align="right"><button type="button" onclick="appendMessageToCloud()" class="send-btn">Store</button></td>
                     </tr>
                 </table>
             </td>
@@ -82,8 +82,8 @@
 
     <table width="100%" border="1" cellpadding="4" cellspacing="0" class="nav-cell">
         <tr>
-            <td><small>QuikChat Message Storage Module &copy; 2026</small></td>
-            <td align="right"><small>Storage Key: qc2_rooms</small></td>
+            <td><small>QuikChat Cloud Archive Module &copy; 2026</small></td>
+            <td align="right"><small id="vault-status">Cloud Storage: Connecting...</small></td>
         </tr>
     </table>
 
@@ -91,6 +91,7 @@
 </table>
 
 <script type="text/javascript">
+    var FIREBASE_URL = "https://quikshare12-default-rtdb.firebaseio.com";
     var selectedRoomId = "general";
     var activeUser = "";
     var roomsDatabase = {
@@ -102,32 +103,64 @@
         if (el) el.innerText = val;
     }
 
-    function loadStorage() {
+    function loadSession() {
         try {
             var u = window.localStorage.getItem("qc2_active_user");
             if (u) activeUser = u;
-            var rooms = window.localStorage.getItem("qc2_rooms");
-            if (rooms) roomsDatabase = JSON.parse(rooms);
         } catch (e) {}
     }
 
-    function saveStorage() {
-        try {
-            window.localStorage.setItem("qc2_rooms", JSON.stringify(roomsDatabase));
-        } catch (e) {}
-    }
-
-    function initMessageVault() {
-        loadStorage();
-        if (!roomsDatabase[selectedRoomId]) selectedRoomId = "general";
-        renderVaultRooms();
-        renderVaultMessages();
+    function parseMessagesObject(rawMsgs) {
+        var list = [];
+        if (!rawMsgs) return list;
+        if (Array.isArray(rawMsgs)) {
+            for (var i = 0; i < rawMsgs.length; i++) {
+                if (rawMsgs[i]) list.push(rawMsgs[i]);
+            }
+        } else {
+            var keys = Object.keys(rawMsgs).sort();
+            for (var k = 0; k < keys.length; k++) {
+                if (rawMsgs[keys[k]]) list.push(rawMsgs[keys[k]]);
+            }
+        }
+        return list;
     }
 
     function refreshVault() {
-        loadStorage();
-        renderVaultRooms();
-        renderVaultMessages();
+        setText("vault-status", "Cloud Storage: Syncing...");
+        fetch(FIREBASE_URL + "/rooms.json?nocache=" + new Date().getTime(), { cache: "no-store" })
+            .then(function(res) { return res.json(); })
+            .then(function(cloudRooms) {
+                var freshDb = {
+                    "general": { name: "General Lobby", creator: "SYSTEM", members: ["SYSTEM"], messages: [] }
+                };
+                if (cloudRooms) {
+                    for (var id in cloudRooms) {
+                        if (cloudRooms.hasOwnProperty(id) && cloudRooms[id]) {
+                            var cRoom = cloudRooms[id];
+                            freshDb[id] = {
+                                name: cRoom.name || id,
+                                creator: cRoom.creator || "SYSTEM",
+                                members: Array.isArray(cRoom.members) ? cRoom.members : ["SYSTEM"],
+                                messages: parseMessagesObject(cRoom.messages)
+                            };
+                        }
+                    }
+                }
+                roomsDatabase = freshDb;
+                if (!roomsDatabase[selectedRoomId]) selectedRoomId = "general";
+                setText("vault-status", "Cloud Storage: Connected (" + new Date().toLocaleTimeString() + ")");
+                renderVaultRooms();
+                renderVaultMessages();
+            })
+            .catch(function() {
+                setText("vault-status", "Cloud Storage: Offline");
+            });
+    }
+
+    function initMessageVault() {
+        loadSession();
+        refreshVault();
     }
 
     function selectVaultRoom(roomId) {
@@ -207,73 +240,83 @@
     }
 
     function checkVaultEnter(e) {
-        if ((e.keyCode || e.which) === 13) appendMessageToStorage();
+        if ((e.keyCode || e.which) === 13) appendMessageToCloud();
     }
 
-    function appendMessageToStorage() {
+    function appendMessageToCloud() {
         var input = document.getElementById("vault-note-box");
         var rawText = input.value;
         if (rawText.trim() === "") return;
 
         var senderName = (activeUser !== "") ? activeUser : "ARCHIVE";
-        roomsDatabase[selectedRoomId].messages.push({
+        var msgObj = {
             time: new Date().toLocaleTimeString(),
             sender: senderName,
             text: rawText
-        });
+        };
 
-        saveStorage();
         input.value = "";
-        renderVaultRooms();
-        renderVaultMessages();
-    }
-
-    function deleteRoomLogs() {
         var room = roomsDatabase[selectedRoomId];
-        if (!room) return;
-        if (confirm("Clear all stored messages for '" + room.name + "'?")) {
-            room.messages = [];
-            saveStorage();
-            renderVaultRooms();
-            renderVaultMessages();
-        }
-    }
-
-    function triggerDownload(filename, content, mimeType) {
-        var blob = new Blob([content], { type: mimeType });
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement("a");
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }
-
-    function downloadHtmlArchive() {
-        var room = roomsDatabase[selectedRoomId];
-        var messages = room ? room.messages : [];
-        var out = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>QuikChat Archive - " + room.name + "</title></head>";
-        out += "<body style='font-family: Courier New, monospace; background:#FFFFFF; color:#000000; padding:16px;'>";
-        out += "<h2>QuikChat Saved Log: " + room.name + "</h2><hr>";
-        for (var i = 0; i < messages.length; i++) {
-            var safeText = messages[i].text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            out += "<div>[" + messages[i].time + "] <b>" + messages[i].sender + ":</b> " + safeText + "</div>";
-        }
-        out += "</body></html>";
-        triggerDownload("quikchat_" + selectedRoomId + "_messages.html", out, "text/html");
-    }
-
+fetch(FIREBASE_URL + "/rooms/" + encodeURIComponent(selectedRoomId) + ".json", {
+method: "PATCH",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify({
+name: room.name,
+creator: room.creator,
+members: room.members
+})
+}).then(function() {
+return fetch(FIREBASE_URL + "/rooms/" + encodeURIComponent(selectedRoomId) + "/messages.json", {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify(msgObj)
+});
+}).then(function() {
+refreshVault();
+});
+}
+function deleteRoomLogs() {
+var room = roomsDatabase[selectedRoomId];
+if (!room) return;
+if (confirm("Clear all cloud messages for '" + room.name + "'?")) {
+fetch(FIREBASE_URL + "/rooms/" + encodeURIComponent(selectedRoomId) + "/messages.json", {
+method: "DELETE"
+}).then(function() {
+refreshVault();
+});
+}
+}
+function triggerDownload(filename, content, mimeType) {
+var blob = new Blob([content], { type: mimeType });
+var url = URL.createObjectURL(blob);
+var a = document.createElement("a");
+a.href = url;
+a.download = filename;
+document.body.appendChild(a);
+a.click();
+document.body.removeChild(a);
+URL.revokeObjectURL(url);
+}
+function downloadHtmlArchive() {
+var room = roomsDatabase[selectedRoomId];
+var messages = room ? room.messages : [];
+var out = "QuikChat Archive - " + room.name + "";
+out += "";
+out += "QuikChat Saved Log: " + room.name + "";
+for (var i = 0; i < messages.length; i++) {
+var safeText = messages[i].text.replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">");
+out += "[" + messages[i].time + "] " + messages[i].sender + ": " + safeText + "";
+}
+out += "";
+triggerDownload("quikchat_" + selectedRoomId + "_messages.html", out, "text/html");
+}
 function downloadJsonBackup() {
 var jsonText = JSON.stringify(roomsDatabase, null, 2);
 triggerDownload("quikchat_messages_backup.json", jsonText, "application/json");
 }
-window.addEventListener("storage", function(e) {
-if (e.key === "qc2_rooms" || e.key === "qc2_active_user") {
-refreshVault();
-}
-});
+
+
+
 </script>
 </body>
 </html>
